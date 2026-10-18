@@ -33,13 +33,12 @@ The deployed Docker worker also converted generated 1280×720 media to all four 
 
 The user physically confirmed the smaller wheel opens and different segments highlight/select correctly before this feature extension. The glass treatment, wheel geometry, icons and settings have been visually checked in earlier builds. The user confirmed the current installed Settings window shows Convert files and Startup & signing.
 
-Native UI inspection currently returns a pipe error for the extended Tangerine window while System Settings and Finder remain inspectable. Automated builds and engine checks must not be treated as proof of complete UI behavior. Final human acceptance of the new batch review, hover side panel and Finder multi-selection capture is pending; the generated disposable files in `build/ReviewFixtures` can be used without touching user files.
+Native UI inspection currently returns a pipe error for the extended Tangerine window while System Settings and Finder remain inspectable. Automated builds and engine checks must not be treated as proof of complete UI behavior. The user confirmed that batch conversion and previews work using the supplied two-PNG review flow, including the Finder wheel side-preview check. Finder multi-selection capture across all views remains a separate acceptance check. The generated disposable files in `build/ReviewFixtures` can be used without touching user files.
 
 ## Remaining acceptance checks
 
-1. Menu bar → Convert files, choose both fixture PNGs, select JPG: verify the sample preview and two successful outputs.
 2. Select both fixtures in Finder, Option-click an already-selected item: verify the center says two files and the review list contains both. Try icon, list, column and gallery views. Unsupported snapshots must fall back to the clicked file rather than an unrelated/partial selection.
-3. Hover native image formats: verify the side preview stays beside the smaller wheel, handles screen edges, and JPEG displays a white transparency background.
+3. Check preview placement at screen edges and JPEG white transparency handling; normal batch/hover preview behavior is user-confirmed.
 4. Test mixed formats, failure rows, file removal/reordering, stopping between inputs and reopening an in-progress batch.
 5. Test PDF merge/split on disposable files and compare page order/content.
 6. Log out/in to verify startup after a real login; the OS registration is verified, but this disruptive test has not been performed.

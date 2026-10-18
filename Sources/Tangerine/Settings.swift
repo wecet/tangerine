@@ -36,7 +36,7 @@ final class Settings: ObservableObject {
     var onChange: (() -> Void)?
     var token: String {
         guard let url = Bundle.main.url(forResource: "worker-token", withExtension: nil) else { return "" }
-        return (try? String(contentsOf: url).trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
+        return (try? String(contentsOf: url, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
     }
     init() {
         let d = UserDefaults.standard

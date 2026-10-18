@@ -40,10 +40,10 @@ final class FileActions {
         while FileManager.default.fileExists(atPath: url.path) { url = folder.appendingPathComponent("\(base) \(n)").appendingPathExtension(ext); n += 1 }
         return url
     }
-    static func save(_ data: Data, to output: URL) throws {
+    static func save(_ data: Data, to output: URL, reveal: Bool = true) throws {
         // O_EXCL semantics prevent races from overwriting an existing file.
         try data.write(to: output, options: [.withoutOverwriting])
-        DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]) }
+        if reveal { DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]) } }
     }
     func conversions(_ file: URL) -> [WheelAction] {
         let type = (try? file.resourceValues(forKeys: [.contentTypeKey]))?.contentType
@@ -51,7 +51,7 @@ final class FileActions {
         let pdf = type?.conforms(to: .pdf) == true
         let media = type?.conforms(to: .movie) == true || type?.conforms(to: .audio) == true
         var actions: [WheelAction] = []
-        let formats = image ? ["png", "jpg", "webp", "heic", "tiff", "pdf", "txt", "docx"] : pdf ? ["png", "jpg", "txt", "docx"] : media ? ["mp4", "mp3", "gif"] : []
+        let formats = image ? ["png", "jpg", "webp", "heic", "tiff", "pdf", "txt", "docx"] : pdf ? ["png", "jpg", "heic", "tiff", "txt", "docx"] : media ? ["mp4", "mp3", "gif"] : []
         for format in formats {
             let worker = ["webp", "mp4", "mp3", "gif"].contains(format)
             actions.append(WheelAction(title: format, symbol: worker ? "arrow.triangle.2.circlepath" : "doc", enabled: !worker || Settings.shared.workerEnabled) { [weak self] in
@@ -74,7 +74,7 @@ final class FileActions {
             WheelAction(title: "Rename", symbol: "character.cursor.ibeam") { Self.rename(file) }
         ]
     }
-    static func convert(_ file: URL, format: String) throws {
+    static func convert(_ file: URL, format: String, reveal: Bool = true) throws {
         if ["txt", "docx"].contains(format) {
             var text = ""
             if file.pathExtension.lowercased() == "pdf", let doc = PDFDocument(url: file) {
@@ -87,20 +87,20 @@ final class FileActions {
                 }
             } else { text = try recognize(image(file)) }
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ActionError(message: "No text was detected in this file.") }
-            if format == "txt" { try save(Data(text.utf8), to: output(for: file, ext: "txt")); return }
+            if format == "txt" { try save(Data(text.utf8), to: output(for: file, ext: "txt"), reveal: reveal); return }
             let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("txt")
             defer { try? FileManager.default.removeItem(at: temp) }
             try Data(text.utf8).write(to: temp)
             let data = try process("/usr/bin/textutil", ["-convert", "docx", "-stdout", temp.path])
-            try save(data, to: output(for: file, ext: "docx")); return
+            try save(data, to: output(for: file, ext: "docx"), reveal: reveal); return
         }
         if file.pathExtension.lowercased() == "pdf", let doc = PDFDocument(url: file), doc.pageCount > 1 {
             // Export every page; never silently drop later pages.
             for index in 0..<doc.pageCount {
                 guard let page = doc.page(at: index) else { continue }
-                try save(encode(page.thumbnail(of: NSSize(width: 2400, height: 2400), for: .mediaBox), format: format), to: output(for: file, suffix: " page \(index + 1)", ext: format))
+                try save(encode(page.thumbnail(of: NSSize(width: 2400, height: 2400), for: .mediaBox), format: format), to: output(for: file, suffix: " page \(index + 1)", ext: format), reveal: reveal)
             }
-        } else { try save(encode(image(file), format: format), to: output(for: file, ext: format)) }
+        } else { try save(encode(image(file), format: format), to: output(for: file, ext: format), reveal: reveal) }
     }
     static func recognize(_ image: NSImage) throws -> String {
         var rect = CGRect(origin: .zero, size: image.size)

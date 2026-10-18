@@ -21,6 +21,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         monitor.start(); updateMenu()
         if !AXIsProcessTrusted() { showSettings() }
     }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showSettings()
+        return true
+    }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Refresh after returning from System Settings without polling permission state.
+        monitor.start()
+        if item != nil { updateMenu() }
+    }
     func updateMenu() {
         let menu = NSMenu()
         menu.addItem(withTitle: "Tangerine", action: nil, keyEquivalent: "")

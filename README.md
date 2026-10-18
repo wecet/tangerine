@@ -13,10 +13,11 @@ Requires macOS 13+, Apple's Command Line Tools (`xcode-select --install`), and D
 
 ```sh
 ./scripts/deploy.sh
-open build/Tangerine.app
+./scripts/install-app.sh
+open ~/Applications/Tangerine.app
 ```
 
-On first launch, use **Accessibility permission…**, then enable Tangerine in **System Settings → Privacy & Security → Accessibility**. Quit and reopen Tangerine, or select **Retry permissions**. macOS requires you to grant this permission; the app does not grant it automatically. Keep the app at a stable path. Rebuilding an ad-hoc signed app may require removing and re-adding its Accessibility entry.
+On first launch, use **Accessibility permission…**, then enable Tangerine in **System Settings → Privacy & Security → Accessibility**. Return to Tangerine to refresh permission status, or select **Retry permissions**. Reopening the app also brings its settings window forward. macOS requires you to grant this permission; the app does not grant it automatically. Keep the app at a stable path. Rebuilding an ad-hoc signed app may require removing and re-adding its Accessibility entry.
 
 The menu bar and Finder integration run natively. Docker Desktop runs Linux containers, which cannot provide a macOS menu bar or intercept Finder clicks. Docker deploys the optional media conversion worker. This split also avoids keeping an Electron/browser runtime open.
 
@@ -24,7 +25,8 @@ To use only native features:
 
 ```sh
 ./scripts/build-app.sh
-open build/Tangerine.app
+./scripts/install-app.sh
+open ~/Applications/Tangerine.app
 ```
 
 Disable Docker media conversions in settings if the worker is stopped.

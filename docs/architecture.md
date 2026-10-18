@@ -2,11 +2,11 @@
 
 ## Native app
 
-Swift Package Manager builds a dependency-free AppKit/SwiftUI executable. `scripts/build-app.sh` wraps it in an `LSUIElement` app bundle and signs it ad hoc. Menu bar settings use UserDefaults under `local.tangerine.mac`.
+Swift Package Manager builds a dependency-free AppKit/SwiftUI executable. `scripts/build-app.sh` wraps it in an `LSUIElement` app bundle and uses a configured persistent identity, falling back to ad-hoc only when no identity is configured. Menu bar settings use UserDefaults under `local.tangerine.mac`.
 
-`FinderMonitor` installs a CGEvent tap only when enabled, bindings differ, and Accessibility is trusted. It watches mouse down/up, compares exact modifier combinations, and performs an Accessibility hit test at the click coordinates. The owning process must be `com.apple.finder`. File URLs come from the clicked element or its ancestors; the fallback resolves an exact displayed filename relative to the containing Finder window's document URL or Desktop. It never reads a previously selected Finder item. If resolution fails, the original click passes through. Matching clicks are consumed along with their mouse-up to avoid accidental Shift selection or Option behavior.
+`FinderMonitor` installs a CGEvent tap only when enabled, bindings differ, and Accessibility is trusted. It watches mouse down/up, compares exact modifier combinations, and performs an Accessibility hit test at the click coordinates. The owning process must be `com.apple.finder`. File URLs come from the clicked element or its ancestors; the fallback resolves an exact displayed filename relative to the containing Finder window's document URL or Desktop. After resolving the clicked file, it snapshots selected Accessibility children only when the complete selection can be resolved and includes that clicked file. It never substitutes an unrelated selection. If resolution fails, the original click passes through. Matching clicks are consumed along with their mouse-up to avoid accidental Shift selection or Option behavior.
 
-This is event-driven; there is no background Finder scan. Event taps disabled by the OS are re-enabled. Disable removes the tap and dismisses the wheel. Finder's Accessibility representation varies between macOS versions, views, virtual/search locations and third-party extensions: unsupported or unresolved elements deliberately leave normal clicks alone. The file under the pointer is the target, not the whole Finder selection.
+This is event-driven; there is no background Finder scan. Event taps disabled by the OS are re-enabled. Disable removes the tap and dismisses the wheel. Finder's Accessibility representation varies between macOS versions, views, virtual/search locations and third-party extensions: unsupported or unresolved elements deliberately leave normal clicks alone. A clicked selected item can target the complete current selection; unresolved selections fall back to the clicked file. Batch review makes the target list explicit before conversion.
 
 `WheelController` hosts rounded ring segments in a transparent nonactivating panel and clamps the panel into the current display's visible bounds. `WheelView` observes the saved accent color. Temporary outside-click and Escape monitors exist only while the wheel is open. Settings and editors use ordinary native windows.
 
@@ -25,3 +25,7 @@ The container limit is a hard ceiling, not a promise that every file under the u
 ## Credentials and packaging
 
 `deploy.sh` creates a 256-bit random hexadecimal token in a mode-600 `.env` file, then builds the app and starts Compose. The same token is embedded in the local app's Resources/worker-token with mode 600. Do not distribute this local app bundle or `.env`. Token changes require rebuilding and reopening the app and recreating the worker. Environment variables are visible to local users with Docker access, so the token is a local access guard, not a multi-user security boundary.
+
+## Product and foundation extensions
+
+See [product workflows](product-workflows.md) for contextual actions, sequential batch execution, format intersection, bounded hover previews and native-first video conversion. See [signing and startup](signing-and-startup.md) for the persistent local signing identity, event-driven permission refresh and SMAppService login startup. Preview work never starts a media-worker conversion.

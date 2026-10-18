@@ -1,10 +1,12 @@
 # Tangerine
 
-A native macOS menu bar app with citrus-segment wheels, neutral translucent surfaces, and a configurable accent. Inspired by the supplied [demo](https://x.com/th2049/status/2111477585461039241/video/1); this is an independent implementation.
+A native macOS menu bar app with contextual citrus-segment wheels, neutral translucent surfaces, and a configurable accent. Inspired by the supplied [demo](https://x.com/th2049/status/2111477585461039241/video/1); this is an independent implementation.
 
 - **Option + click** a file in Finder or on the Desktop: conversion wheel.
 - **Shift + click** a file: utilities wheel.
 - Menu bar → **Settings & accent color…**: change bindings, accent, or enable/disable wheels.
+- **Convert files…** in the menu bar opens batch review with per-file results and live sample previews.
+- Hover over a format to preview its output. Existing Finder selections become batches when the clicked item belongs to the complete captured selection.
 - Escape or click outside dismisses the wheel. Unsupported actions are dimmed.
 
 ## Start
@@ -35,15 +37,16 @@ Disable Docker media conversions in settings if the worker is stopped.
 
 | Input | Conversion outputs |
 | --- | --- |
-| Image, including PNG, JPEG, HEIC | PNG, JPG, HEIC, TIFF, PDF, TXT, DOCX; WebP through Docker |
+| Image, including PNG, JPEG, HEIC | PNG, JPG, HEIC, TIFF, PDF, TXT, DOCX; WebP natively when supported, otherwise Docker |
 | PDF | PNG, JPG, HEIC, TIFF, TXT, DOCX |
-| Video/audio | MP4, MP3, GIF through Docker, subject to compatible streams |
+| Video | MP4 natively with Docker fallback; MP3/GIF through Docker |
+| Audio | MP3 through Docker |
 
 PDF-to-image exports **each page** into a separate image. Rasterized PDF pages fit within 2400 × 2400 pixels. Text extraction reads a PDF's text layer and uses on-device Vision OCR for scanned pages or images. DOCX is a text document; original document layout is not reconstructed. JPEG uses a white background for transparent pixels. Image conversion exports the first frame of animated/multipage image formats.
 
-Utilities include **Crop**, **Add BG** (solid/gradient background, padding, corners, shadow), **Compress** (ZIP archive), **Metadata**, **Preview** (opens Apple's Preview for editing/annotation), **Copy path**, **Duplicate**, and **Rename**. Cropping and background styling apply to images. Background exports cap the image area at 2000 px per side, with up to 200 px padding. Originals are preserved by conversions and editors; rename changes the original filename. New outputs use numbered names rather than overwriting existing files.
+Utilities adapt to the file type and include PDF split/merge, **Crop**, **Add BG** (solid/gradient background, padding, corners, shadow), **Compress** (ZIP archive), **Metadata**, **Preview** (opens Apple's Preview for editing/annotation), **Copy path**, **Duplicate**, and **Rename**. Cropping and background styling apply to images. Background exports cap the image area at 2000 px per side, with up to 200 px padding. Originals are preserved by conversions and editors; rename changes the original filename. New outputs use numbered names rather than overwriting existing files.
 
-This version uses click-to-open and click-to-select. Drag-to-select, custom redaction/annotation tools, AVIF/BMP output, batch selection, login startup, and a launch-at-login helper from the reference are not implemented. Preview supplies its own editing tools.
+This version uses click-to-open and click-to-select. Drag-to-select, custom annotation/redaction tools, and AVIF/BMP output from the reference are not implemented. Batch conversion and native login startup are included. Preview supplies its own editing tools.
 
 ## Low resource Docker deployment
 
@@ -77,4 +80,4 @@ The app's enable toggle disables click handling; it does not stop Docker or the 
 
 Tests require `python3`, `ffmpeg`, and `ffprobe` on the host. The app itself only needs the native tools provided with macOS; FFmpeg runs in Docker at runtime.
 
-See [architecture](docs/architecture.md), [operations](docs/operations.md), and [validation](docs/validation.md). Generated binaries, local tokens, previews and compiler caches are excluded from Git. The app is locally ad-hoc signed; distributing it to others requires your Developer ID signing and notarization.
+See [context, batches and previews](docs/product-workflows.md), [stable signing and login startup](docs/signing-and-startup.md), [architecture](docs/architecture.md), [operations](docs/operations.md), and [validation](docs/validation.md). Generated binaries, local tokens, previews and compiler caches are excluded from Git. The build supports a persistent local signing identity or your Developer ID; with neither configured it uses ad-hoc signing. Distribution requires Developer ID signing and notarization.

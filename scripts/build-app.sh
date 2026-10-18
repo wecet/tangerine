@@ -4,6 +4,8 @@ cd "$(dirname "$0")/.."
 swift build -c release
 app="$PWD/build/Tangerine.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+./scripts/build-icon.sh
+cp build/Tangerine.icns "$app/Contents/Resources/Tangerine.icns"
 cp .build/release/Tangerine "$app/Contents/MacOS/Tangerine"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -12,6 +14,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>local.tangerine.mac</string>
 <key>CFBundleName</key><string>Tangerine</string>
 <key>CFBundleDisplayName</key><string>Tangerine</string>
+<key>CFBundleIconFile</key><string>Tangerine</string>
 <key>CFBundleExecutable</key><string>Tangerine</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>

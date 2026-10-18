@@ -52,7 +52,7 @@ struct SettingsView: View {
     let permissions: () -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack { Image(systemName: "circle.hexagongrid.fill").foregroundStyle(settings.accent).font(.largeTitle); VStack(alignment: .leading) { Text("Tangerine").font(.title.bold()); Text("A little more at your fingertips.").foregroundStyle(.secondary) } }
+            HStack { Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 52, height: 52); VStack(alignment: .leading) { Text("Tangerine").font(.title.bold()); Text("A little more at your fingertips.").foregroundStyle(.secondary) } }
             ColorPicker("Wheel accent", selection: SwiftUI.Binding(get: { settings.accent }, set: { settings.setAccent($0) }), supportsOpacity: false)
             Toggle("Enable Finder & Desktop wheels", isOn: $settings.enabled)
             GroupBox("Click bindings") {

@@ -43,4 +43,8 @@ docker stats --no-stream tangerine-worker-1
 
 ## Finder follow-up
 
-The user confirmed that a physical Option-click opens the conversion wheel after the Tangerine-only Accessibility reset and reauthorization. The initial overlaid-segment pointer bug was then replaced with one wheel-level position hit test. Sector checks cover every segment at three radial distances for 3-, 4-, 6- and 8-action wheels, and reject the hub/outside area. The display canvas is reduced from 360 to 290 points. Conversion, OCR and worker checks still pass. Final physical hover/click verification of the smaller installed build remains pending its Accessibility reauthorization; automated Finder clicks bypassed the global event tap in this session.
+The user confirmed that a physical Option-click opens the conversion wheel after the Tangerine-only Accessibility reset and reauthorization. The initial overlaid-segment pointer bug was then replaced with one wheel-level position hit test. Sector checks cover every segment at three radial distances for 3-, 4-, 6- and 8-action wheels, and reject the hub/outside area. The display canvas is reduced from 360 to 290 points. Conversion, OCR and worker checks still pass. The user subsequently confirmed that the smaller wheel highlights and selects different formats correctly. Automated Finder clicks bypassed the global event tap in this session.
+
+## Glass styling
+
+The wheel now uses an active behind-window NSVisualEffectView for desktop blur, transparent gradient segments, reflective outlines and a clear center. Reduce Transparency falls back to an opaque system background. The glass backdrop does not receive pointer events. Existing sector, conversion and HTTP checks pass after the styling change. Offscreen rendering verifies the geometry and highlights; live desktop blur depends on the window compositor.

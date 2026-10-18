@@ -43,6 +43,32 @@ enum WheelGeometry {
         return (0..<count).first { Wedge(index: $0, count: count).path(in: rect).contains(point) }
     }
 }
+/// Blur the desktop behind the floating panel, even while Finder stays active.
+private struct GlassBackdrop: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.blendingMode = .behindWindow
+        view.material = .hudWindow
+        view.state = .active
+        return view
+    }
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+private struct WheelGlass: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var body: some View {
+        ZStack {
+            if reduceTransparency { Circle().fill(Color(nsColor: .windowBackgroundColor)) }
+            else { GlassBackdrop().clipShape(Circle()) }
+            Circle().fill(LinearGradient(colors: [.white.opacity(0.13), .white.opacity(0.025), .black.opacity(0.07)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle().stroke(LinearGradient(colors: [.white.opacity(0.85), .white.opacity(0.12), .white.opacity(0.36)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+            Circle().inset(by: 3).stroke(.white.opacity(0.09), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 18, y: 9)
+        .frame(width: 322, height: 322)
+        .allowsHitTesting(false)
+    }
+}
 struct WheelSegment: View {
     let action: WheelAction
     let index: Int
@@ -54,12 +80,17 @@ struct WheelSegment: View {
         let angle = Double(index) * 2 * Double.pi / Double(count) - Double.pi / 2
         let shape = Wedge(index: index, count: count)
         ZStack {
-            shape.fill(hovered ? accent.opacity(0.85) : Color.white.opacity(0.24))
-            shape.stroke(Color.white.opacity(0.35), style: StrokeStyle(lineWidth: 2, lineJoin: .round))
+            shape.fill(LinearGradient(colors: hovered
+                ? [accent.opacity(0.62), accent.opacity(0.28)]
+                : [.white.opacity(0.17), .white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            shape.stroke(LinearGradient(colors: [.white.opacity(hovered ? 0.95 : 0.7), .white.opacity(0.08), .white.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing), style: StrokeStyle(lineWidth: 1, lineJoin: .round))
+            shape.stroke(.black.opacity(0.12), lineWidth: 0.5).offset(y: 0.7)
             VStack(spacing: 5) {
                 Image(systemName: action.symbol).font(.system(size: 18, weight: .medium))
                 Text(action.title.uppercased()).font(.system(size: 10, weight: .bold))
-            }.position(x: 180.0 + 111.0 * cos(angle), y: 180.0 + 111.0 * sin(angle))
+            }
+            .shadow(color: .black.opacity(0.3), radius: 1, y: 1)
+            .position(x: 180.0 + 111.0 * cos(angle), y: 180.0 + 111.0 * sin(angle))
         }
         .frame(width: 360, height: 360)
         .contentShape(shape)
@@ -82,15 +113,16 @@ struct WheelView: View {
     private var hoveredAction: WheelAction? { hoverIndex.map { actions[$0] } }
     var body: some View {
         ZStack {
-            Circle().fill(.ultraThinMaterial)
-                .overlay(Circle().stroke(Color.white.opacity(0.45), lineWidth: 1))
-                .shadow(color: .black.opacity(0.2), radius: 18, y: 8)
-                .frame(width: 322, height: 322)
+            WheelGlass()
             ForEach(actions.indices, id: \.self) { index in
                 WheelSegment(action: actions[index], index: index, count: actions.count, accent: settings.accent, hovered: hoverIndex == index && actions[index].enabled, dismiss: dismiss)
                     .allowsHitTesting(false)
             }
-            Circle().fill(.thinMaterial).frame(width: 116, height: 116).overlay(Circle().stroke(settings.accent.opacity(0.35), lineWidth: 1))
+            Circle()
+                .fill(LinearGradient(colors: [.white.opacity(0.12), .black.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(Circle().stroke(LinearGradient(colors: [.white.opacity(0.65), settings.accent.opacity(0.3), .white.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                .frame(width: 116, height: 116)
+                .allowsHitTesting(false)
             VStack(spacing: 6) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable().frame(width: 28, height: 28)
                 Text(hoveredAction?.title ?? title).font(.system(size: 11, weight: .semibold)).lineLimit(1)

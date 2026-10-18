@@ -6,6 +6,7 @@ struct WheelAction: Identifiable {
     let title: String
     let symbol: String
     var enabled = true
+    var previewFormat: String? = nil
     let perform: () -> Void
 }
 struct Wedge: Shape {
@@ -108,6 +109,7 @@ struct WheelView: View {
     let title: String
     let actions: [WheelAction]
     let dismiss: () -> Void
+    var onHoverAction: ((WheelAction?) -> Void)? = nil
     @ObservedObject var settings = Settings.shared
     @State private var hoverIndex: Int?
     private var hoveredAction: WheelAction? { hoverIndex.map { actions[$0] } }
@@ -133,8 +135,8 @@ struct WheelView: View {
         .contentShape(Rectangle())
         .onContinuousHover { phase in
             switch phase {
-            case .active(let location): hoverIndex = WheelGeometry.actionIndex(at: location, count: actions.count)
-            case .ended: hoverIndex = nil
+            case .active(let location): setHover(WheelGeometry.actionIndex(at: location, count: actions.count))
+            case .ended: setHover(nil)
             }
         }
         .gesture(SpatialTapGesture().onEnded { value in
@@ -145,6 +147,11 @@ struct WheelView: View {
         .scaleEffect(WheelGeometry.displaySize / WheelGeometry.canvasSize)
         .frame(width: WheelGeometry.displaySize, height: WheelGeometry.displaySize)
     }
+    private func setHover(_ index: Int?) {
+        guard hoverIndex != index else { return }
+        hoverIndex = index
+        onHoverAction?(index.map { actions[$0] })
+    }
 }
 final class WheelPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -152,15 +159,17 @@ final class WheelPanel: NSPanel {
 }
 final class WheelController {
     private var panel: WheelPanel?
+    private var previewPanel: NSPanel?
+    private let preview = PreviewModel()
     private var global: Any?
     private var local: Any?
-    func show(file: URL, title: String, actions: [WheelAction], at point: CGPoint) {
+    func show(file: URL, title: String, actions: [WheelAction], at point: CGPoint, selectionCount: Int = 1) {
         dismiss()
         let size = WheelGeometry.displaySize
         let panel = WheelPanel(contentRect: NSRect(x: 0, y: 0, width: size, height: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false; panel.level = .popUpMenu
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView: WheelView(file: file, title: title, actions: actions, dismiss: { [weak self] in self?.dismiss() }))
+        panel.contentView = NSHostingView(rootView: WheelView(file: file, title: title, actions: actions, dismiss: { [weak self] in self?.dismiss() }, onHoverAction: { [weak self] action in self?.showPreview(file, action: action, count: selectionCount) }))
         let top = NSScreen.screens.first?.frame.maxY ?? 0
         let appPoint = CGPoint(x: point.x, y: top - point.y)
         let screen = NSScreen.screens.first { $0.frame.contains(appPoint) } ?? NSScreen.main!
@@ -174,7 +183,27 @@ final class WheelController {
             return event
         }
     }
+    private func showPreview(_ file: URL, action: WheelAction?, count: Int) {
+        guard let panel, let action, action.enabled, let format = action.previewFormat else {
+            preview.clear(); previewPanel?.orderOut(nil); return
+        }
+        if previewPanel == nil {
+            let sidecar = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 272, height: 380), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            sidecar.isOpaque = false; sidecar.backgroundColor = .clear; sidecar.hasShadow = true
+            sidecar.level = .popUpMenu; sidecar.ignoresMouseEvents = true
+            sidecar.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            previewPanel = sidecar
+        }
+        previewPanel?.contentView = NSHostingView(rootView: OutputPreviewView(model: preview, selectionCount: count))
+        let screen = NSScreen.screens.first { $0.frame.intersects(panel.frame) } ?? NSScreen.main!
+        let bounds = screen.visibleFrame
+        let right = panel.frame.maxX + 8
+        let x = right + 272 <= bounds.maxX ? right : panel.frame.minX - 280
+        previewPanel?.setFrameOrigin(NSPoint(x: max(bounds.minX, min(x, bounds.maxX - 272)), y: max(bounds.minY, min(panel.frame.maxY - 380, bounds.maxY - 380))))
+        preview.request(file, format: format); previewPanel?.orderFrontRegardless()
+    }
     func dismiss() {
+        preview.clear(); previewPanel?.orderOut(nil)
         panel?.orderOut(nil); panel = nil
         if let global { NSEvent.removeMonitor(global) }; global = nil
         if let local { NSEvent.removeMonitor(local) }; local = nil

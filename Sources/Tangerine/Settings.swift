@@ -52,7 +52,9 @@ final class Settings: ObservableObject {
 struct SettingsView: View {
     @ObservedObject var settings = Settings.shared
     let permissions: () -> Void
+    var convertFiles: () -> Void = {}
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 20) {
             HStack { Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 52, height: 52); VStack(alignment: .leading) { Text("Tangerine").font(.title.bold()); Text("A little more at your fingertips.").foregroundStyle(.secondary) } }
             ColorPicker("Wheel accent", selection: SwiftUI.Binding(get: { settings.accent }, set: { settings.setAccent($0) }), supportsOpacity: false)
@@ -70,12 +72,14 @@ struct SettingsView: View {
                     if settings.conversion == settings.utilities { Text("Choose different bindings. Wheels are paused while they conflict.").foregroundStyle(.red) }
                 }.padding(8)
             }
-            Toggle("Enable Docker media conversions (WebP, MP4, MP3)", isOn: $settings.workerEnabled)
-            Text("Native image, PDF and text conversions work offline. Media conversions use the local worker at 127.0.0.1:8765. Originals are always kept.").font(.callout).foregroundStyle(.secondary)
+            Button("Convert files…", action: convertFiles)
+            Toggle("Enable Docker fallback conversions", isOn: $settings.workerEnabled)
+            Text("Image, PDF, text, and supported MP4 conversions run natively. MP3, GIF, unsupported WebP and video fallbacks use the local Docker worker. Originals are always kept.").font(.callout).foregroundStyle(.secondary)
             Divider()
             Text("Click directly on a file icon or filename in Finder or on the Desktop. Choose an action, or press Escape / click outside to dismiss.").font(.callout)
             HStack { Button("Accessibility permission…", action: permissions); Spacer(); Button("Restore defaults") { settings.conversion = .option; settings.utilities = .shift; settings.enabled = true } }
             Text("Enable Tangerine under Privacy & Security → Accessibility, then return here. No polling, analytics, or cloud uploads.").font(.caption).foregroundStyle(.secondary)
-        }.padding(26).frame(width: 470)
+        }.padding(26)
+        }.frame(width: 510, height: 680)
     }
 }

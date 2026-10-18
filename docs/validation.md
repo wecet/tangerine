@@ -40,3 +40,7 @@ docker stats --no-stream tangerine-worker-1
 ```
 
 `check.sh` uses generated temporary fixtures; it does not change user files or request Accessibility. The smoke script requires the local `.env`, running worker, and host FFmpeg/ffprobe. Tokens and test artifacts are not committed.
+
+## Finder follow-up
+
+The user confirmed that a physical Option-click opens the conversion wheel after the Tangerine-only Accessibility reset and reauthorization. The initial overlaid-segment pointer bug was then replaced with one wheel-level position hit test. Sector checks cover every segment at three radial distances for 3-, 4-, 6- and 8-action wheels, and reject the hub/outside area. The display canvas is reduced from 360 to 290 points. Conversion, OCR and worker checks still pass. Final physical hover/click verification of the smaller installed build remains pending its Accessibility reauthorization; automated Finder clicks bypassed the global event tap in this session.

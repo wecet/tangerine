@@ -8,7 +8,10 @@ final class FinderMonitor {
     private var swallowed = false
     func start() {
         stop()
-        guard Settings.shared.enabled, Settings.shared.conversion != Settings.shared.utilities, AXIsProcessTrusted() else { return }
+        let settings = Settings.shared
+        guard settings.enabled else { settings.connectionStatus = "Wheels paused"; return }
+        guard settings.conversion != settings.utilities else { settings.connectionStatus = "Choose different click bindings"; return }
+        guard AXIsProcessTrusted() else { settings.connectionStatus = "This running app does not have Accessibility access"; return }
         let mask = (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseUp.rawValue)
         tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: CGEventMask(mask), callback: { _, type, event, context in
             guard let context else { return Unmanaged.passUnretained(event) }
@@ -18,6 +21,9 @@ final class FinderMonitor {
             source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
             CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
+            settings.connectionStatus = "Ready · Finder & Desktop"
+        } else {
+            settings.connectionStatus = "Accessibility granted, but mouse event access failed. Quit and reopen Tangerine."
         }
     }
     func stop() {
@@ -34,7 +40,10 @@ final class FinderMonitor {
         if type == .leftMouseUp, swallowed { swallowed = false; return nil }
         guard type == .leftMouseDown, Settings.shared.enabled else { return Unmanaged.passUnretained(event) }
         let convert = Settings.shared.conversion.matches(event.flags)
-        guard convert || Settings.shared.utilities.matches(event.flags), let file = clickedFile(at: event.location) else { return Unmanaged.passUnretained(event) }
+        guard convert || Settings.shared.utilities.matches(event.flags) else { return Unmanaged.passUnretained(event) }
+        Settings.shared.lastClickStatus = "Bound click received; checking Finder item…"
+        guard let file = clickedFile(at: event.location) else { return Unmanaged.passUnretained(event) }
+        Settings.shared.lastClickStatus = "Opened \(convert ? "conversion" : "utilities") wheel."
         swallowed = true
         let location = event.location
         DispatchQueue.main.async { [weak self] in self?.onClick?(file, convert, location) }
@@ -49,10 +58,16 @@ final class FinderMonitor {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.08)
         var hit: AXUIElement?
-        guard AXUIElementCopyElementAtPosition(system, Float(point.x), Float(point.y), &hit) == .success, var element = hit else { return nil }
+        guard AXUIElementCopyElementAtPosition(system, Float(point.x), Float(point.y), &hit) == .success, var element = hit else {
+            Settings.shared.lastClickStatus = "Click received; macOS could not resolve the item under the pointer."
+            return nil
+        }
         var pid: pid_t = 0
         AXUIElementGetPid(element, &pid)
-        guard NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.apple.finder" else { return nil }
+        guard NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.apple.finder" else {
+            Settings.shared.lastClickStatus = "Click passed through: the target belongs to another app."
+            return nil
+        }
         AXUIElementSetMessagingTimeout(element, 0.08)
         var names: [String] = []
         var folder: URL?
@@ -68,7 +83,7 @@ final class FinderMonitor {
             if let url = attribute(element, kAXURLAttribute) as? URL, url.isFileURL, FileManager.default.fileExists(atPath: url.path) { return url }
             if let raw = attribute(element, kAXURLAttribute) as? String, let url = URL(string: raw), url.isFileURL, FileManager.default.fileExists(atPath: url.path) { return url }
             if [kAXImageRole, kAXStaticTextRole, kAXTextFieldRole, kAXRowRole, kAXCellRole].contains(role) {
-                for key in [kAXTitleAttribute, kAXValueAttribute] {
+                for key in [kAXTitleAttribute, kAXValueAttribute, kAXDescriptionAttribute] {
                     if let name = attribute(element, key) as? String, !name.isEmpty, !name.contains("/") { names.append(name) }
                 }
             }
@@ -76,11 +91,15 @@ final class FinderMonitor {
             element = unsafeBitCast(parent, to: AXUIElement.self)
         }
         if desktop && folder == nil { folder = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first }
-        guard let folder, folder.isFileURL else { return nil }
+        guard let folder, folder.isFileURL else {
+            Settings.shared.lastClickStatus = "Finder item found; its containing folder was not available."
+            return nil
+        }
         for name in names {
             let candidate = folder.appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
         }
+        Settings.shared.lastClickStatus = "Finder click received, but the filename could not be resolved (\(names.count) candidates)."
         return nil // Fail closed: never operate on a previous Finder selection.
     }
 }

@@ -28,3 +28,13 @@ The scratch volume can retain bytes after a crash or forced kill. Remove the pro
 Accessibility is needed for Finder hit testing and consuming bound clicks. The app does not request Screen Recording, Full Disk Access, or Finder Apple Events automation. It does not automatically click permission prompts. macOS can separately ask for access to protected folders when files are read/written; grant only the folders you intend to use.
 
 Ad-hoc signatures support local development. Use a consistent Developer ID identity and notarization for a distributable release. Rebuild on Intel to obtain an Intel binary, or produce and verify a universal binary before distributing to both architectures. Current build scripts compile for the current host architecture.
+
+## Permission enabled but wheels still inactive
+
+Check the **Connection** section in Tangerine Settings. It distinguishes missing Accessibility trust from a failure to create the mouse listener, and reports the last matching click without storing a log of filenames or paths.
+
+If System Settings shows Tangerine enabled but Connection says the running app lacks access, quit and reopen the unchanged installed app. If the mismatch persists, reset only this app's permission with `tccutil reset Accessibility local.tangerine.mac`, then launch the app, request Accessibility again, and enable the fresh entry for `~/Applications/Tangerine.app`. This reset revokes the existing grant; it never grants access automatically. Do it only with the user's explicit approval. Do not reset permissions for every application.
+
+Ad-hoc signatures identify a build by its code hash. Rebuilding/reinstalling can therefore invalidate a previous Accessibility grant even when the bundle name and path stay the same. Complete a build before authorizing it, avoid rebuilding while checking permissions, and use a persistent signing identity for distributed releases.
+
+When Connection says Ready, test with a physical Option-click or Shift-click. Per-window automation events may bypass global event taps and are not sufficient to validate mouse interception. A matching physical click should update the second diagnostic line. Another-app clicks pass through, and unresolved Finder filenames produce a specific diagnostic instead of consuming the click.

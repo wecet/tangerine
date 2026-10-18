@@ -51,6 +51,7 @@ final class Settings: ObservableObject {
 }
 struct SettingsView: View {
     @ObservedObject var settings = Settings.shared
+    @ObservedObject var foundation = FoundationSettings.shared
     let permissions: () -> Void
     var convertFiles: () -> Void = {}
     var body: some View {
@@ -72,6 +73,14 @@ struct SettingsView: View {
                     if settings.conversion == settings.utilities { Text("Choose different bindings. Wheels are paused while they conflict.").foregroundStyle(.red) }
                 }.padding(8)
             }
+            GroupBox("Startup & signing") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Launch at login", isOn: SwiftUI.Binding(get: { foundation.loginEnabled }, set: { foundation.setLaunchAtLogin($0) }))
+                    Text(foundation.loginStatus).font(.caption).foregroundStyle(.secondary)
+                    if foundation.loginStatus.contains("Approve") { Button("Open Login Items…") { foundation.openLoginItems() } }
+                    Text(foundation.signingStatus).font(.caption).foregroundStyle(.secondary)
+                }.padding(6).frame(maxWidth: .infinity, alignment: .leading)
+            }
             Button("Convert files…", action: convertFiles)
             Toggle("Enable Docker fallback conversions", isOn: $settings.workerEnabled)
             Text("Image, PDF, text, and supported MP4 conversions run natively. MP3, GIF, unsupported WebP and video fallbacks use the local Docker worker. Originals are always kept.").font(.callout).foregroundStyle(.secondary)
@@ -81,5 +90,6 @@ struct SettingsView: View {
             Text("Enable Tangerine under Privacy & Security → Accessibility, then return here. No polling, analytics, or cloud uploads.").font(.caption).foregroundStyle(.secondary)
         }.padding(26)
         }.frame(width: 510, height: 680)
+        .onAppear { foundation.refresh() }
     }
 }

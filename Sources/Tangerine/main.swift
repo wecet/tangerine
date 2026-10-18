@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = FinderMonitor()
     private let wheel = WheelController()
     private let actions = FileActions()
+    private var activationObserver: Any?
     private var settingsWindow: NSWindow?
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -19,6 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.wheel.show(file: file, title: files.count > 1 ? "\(files.count) files" : convert ? "Convert" : "Utilities", actions: convert ? self.actions.conversions(files) : self.actions.utilities(files), at: point, selectionCount: files.count)
         }
         Settings.shared.onChange = { [weak self] in self?.wheel.dismiss(); self?.monitor.start(); self?.updateMenu() }
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.monitor.start(); self?.updateMenu(); FoundationSettings.shared.refresh()
+        }
         monitor.start(); updateMenu()
         if !AXIsProcessTrusted() { showSettings() }
     }
@@ -64,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
     @objc func quit() { NSApp.terminate(nil) }
-    func applicationWillTerminate(_ notification: Notification) { monitor.stop(); wheel.dismiss() }
+    func applicationWillTerminate(_ notification: Notification) { monitor.stop(); wheel.dismiss(); if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) } }
 }
 let app = NSApplication.shared
 let delegate = AppDelegate()

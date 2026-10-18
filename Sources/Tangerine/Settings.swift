@@ -19,6 +19,8 @@ enum Binding: String, CaseIterable, Identifiable {
 }
 final class Settings: ObservableObject {
     static let shared = Settings()
+    @Published var connectionStatus = "Starting…"
+    @Published var lastClickStatus = "No bound click received yet."
     @Published var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "enabled"); onChange?() } }
     @Published var conversion: Binding { didSet { UserDefaults.standard.set(conversion.rawValue, forKey: "conversion"); onChange?() } }
     @Published var utilities: Binding { didSet { UserDefaults.standard.set(utilities.rawValue, forKey: "utilities"); onChange?() } }
@@ -54,6 +56,12 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack { Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 52, height: 52); VStack(alignment: .leading) { Text("Tangerine").font(.title.bold()); Text("A little more at your fingertips.").foregroundStyle(.secondary) } }
             ColorPicker("Wheel accent", selection: SwiftUI.Binding(get: { settings.accent }, set: { settings.setAccent($0) }), supportsOpacity: false)
+            GroupBox("Connection") {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(settings.connectionStatus).font(.callout.bold())
+                    Text(settings.lastClickStatus).font(.caption).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(6)
+            }
             Toggle("Enable Finder & Desktop wheels", isOn: $settings.enabled)
             GroupBox("Click bindings") {
                 VStack(alignment: .leading, spacing: 12) {

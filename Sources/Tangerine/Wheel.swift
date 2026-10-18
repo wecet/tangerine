@@ -34,13 +34,21 @@ struct Wedge: Shape {
         return p
     }
 }
+enum WheelGeometry {
+    static let canvasSize: CGFloat = 360
+    static let displaySize: CGFloat = 290
+    static func actionIndex(at point: CGPoint, count: Int) -> Int? {
+        guard count > 0 else { return nil }
+        let rect = CGRect(x: 0, y: 0, width: canvasSize, height: canvasSize)
+        return (0..<count).first { Wedge(index: $0, count: count).path(in: rect).contains(point) }
+    }
+}
 struct WheelSegment: View {
     let action: WheelAction
     let index: Int
     let count: Int
     let accent: Color
     let hovered: Bool
-    let hover: (Bool) -> Void
     let dismiss: () -> Void
     var body: some View {
         let angle = Double(index) * 2 * Double.pi / Double(count) - Double.pi / 2
@@ -56,8 +64,6 @@ struct WheelSegment: View {
         .frame(width: 360, height: 360)
         .contentShape(shape)
         .opacity(action.enabled ? 1 : 0.3)
-        .onHover(perform: hover)
-        .onTapGesture { activate() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(action.title)
         .accessibilityAddTraits(.isButton)
@@ -72,7 +78,8 @@ struct WheelView: View {
     let actions: [WheelAction]
     let dismiss: () -> Void
     @ObservedObject var settings = Settings.shared
-    @State private var hover: String?
+    @State private var hoverIndex: Int?
+    private var hoveredAction: WheelAction? { hoverIndex.map { actions[$0] } }
     var body: some View {
         ZStack {
             Circle().fill(.ultraThinMaterial)
@@ -80,15 +87,31 @@ struct WheelView: View {
                 .shadow(color: .black.opacity(0.2), radius: 18, y: 8)
                 .frame(width: 322, height: 322)
             ForEach(actions.indices, id: \.self) { index in
-                WheelSegment(action: actions[index], index: index, count: actions.count, accent: settings.accent, hovered: hover == actions[index].id, hover: { inside in hover = inside ? actions[index].id : nil }, dismiss: dismiss)
+                WheelSegment(action: actions[index], index: index, count: actions.count, accent: settings.accent, hovered: hoverIndex == index && actions[index].enabled, dismiss: dismiss)
+                    .allowsHitTesting(false)
             }
             Circle().fill(.thinMaterial).frame(width: 116, height: 116).overlay(Circle().stroke(settings.accent.opacity(0.35), lineWidth: 1))
             VStack(spacing: 6) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable().frame(width: 28, height: 28)
-                Text(hover ?? title).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                Text(hoveredAction?.title ?? title).font(.system(size: 11, weight: .semibold)).lineLimit(1)
                 Text(file.lastPathComponent).font(.system(size: 9)).lineLimit(1).foregroundStyle(.secondary)
             }.frame(width: 104).allowsHitTesting(false)
-        }.frame(width: 360, height: 360)
+        }
+        .frame(width: WheelGeometry.canvasSize, height: WheelGeometry.canvasSize)
+        .contentShape(Rectangle())
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location): hoverIndex = WheelGeometry.actionIndex(at: location, count: actions.count)
+            case .ended: hoverIndex = nil
+            }
+        }
+        .gesture(SpatialTapGesture().onEnded { value in
+            guard let index = WheelGeometry.actionIndex(at: value.location, count: actions.count), actions[index].enabled else { return }
+            dismiss()
+            actions[index].perform()
+        })
+        .scaleEffect(WheelGeometry.displaySize / WheelGeometry.canvasSize)
+        .frame(width: WheelGeometry.displaySize, height: WheelGeometry.displaySize)
     }
 }
 final class WheelPanel: NSPanel {
@@ -101,7 +124,8 @@ final class WheelController {
     private var local: Any?
     func show(file: URL, title: String, actions: [WheelAction], at point: CGPoint) {
         dismiss()
-        let panel = WheelPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 360), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        let size = WheelGeometry.displaySize
+        let panel = WheelPanel(contentRect: NSRect(x: 0, y: 0, width: size, height: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false; panel.level = .popUpMenu
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentView = NSHostingView(rootView: WheelView(file: file, title: title, actions: actions, dismiss: { [weak self] in self?.dismiss() }))
@@ -109,7 +133,7 @@ final class WheelController {
         let appPoint = CGPoint(x: point.x, y: top - point.y)
         let screen = NSScreen.screens.first { $0.frame.contains(appPoint) } ?? NSScreen.main!
         let bounds = screen.visibleFrame
-        panel.setFrameOrigin(NSPoint(x: max(bounds.minX, min(appPoint.x - 180, bounds.maxX - 360)), y: max(bounds.minY, min(appPoint.y - 180, bounds.maxY - 360))))
+        panel.setFrameOrigin(NSPoint(x: max(bounds.minX, min(appPoint.x - size / 2, bounds.maxX - size)), y: max(bounds.minY, min(appPoint.y - size / 2, bounds.maxY - size))))
         self.panel = panel; panel.makeKeyAndOrderFront(nil)
         global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] _ in DispatchQueue.main.async { self?.dismiss() } }
         local = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in

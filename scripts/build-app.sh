@@ -32,5 +32,26 @@ if [ -f .env ]; then
     chmod 600 "$app/Contents/Resources/worker-token"
   fi
 fi
-codesign --force --sign - "$app"
+signing_identity="${TANGERINE_SIGNING_IDENTITY:-}"
+local_identity=false
+if [ -z "$signing_identity" ] && [ -f .signing-identity ]; then
+  signing_identity="$(cat .signing-identity)"
+  if [[ ! "$signing_identity" =~ ^[A-Fa-f0-9]{40}$ ]]; then
+    printf 'Invalid local signing fingerprint.\n' >&2
+    exit 1
+  fi
+  local_identity=true
+fi
+if [ -n "$signing_identity" ]; then
+  if [ "$local_identity" = true ]; then
+    requirement="designated => identifier \"local.tangerine.mac\" and certificate leaf = H\"$signing_identity\""
+    codesign --force --sign "$signing_identity" --requirements "=$requirement" --timestamp=none "$app"
+  else
+    codesign --force --sign "$signing_identity" --options runtime "$app"
+  fi
+else
+  codesign --force --sign - "$app"
+  printf 'Ad-hoc signed: configure a persistent identity to retain Accessibility across rebuilds.\n'
+fi
+codesign --verify --deep --strict "$app"
 printf 'Built %s\n' "$app"

@@ -11,6 +11,8 @@ struct ActionError: LocalizedError {
 final class FileActions {
     var onBusy: ((Bool) -> Void)?
     private var busy = false
+    var batchWindow: NSWindow?
+    var batchModel: BatchConversionModel?
     var editor: NSWindow?
     static func image(_ file: URL) throws -> NSImage {
         if file.pathExtension.lowercased() == "pdf", let page = PDFDocument(url: file)?.page(at: 0) {
@@ -20,14 +22,18 @@ final class FileActions {
         return image
     }
     func run(_ work: @escaping () throws -> Void) {
-        guard !busy else { Self.alert("A task is already running. Please wait for it to finish."); return }
-        busy = true; onBusy?(true)
+        guard beginTask() else { return }
         DispatchQueue.global(qos: .userInitiated).async {
             var failure: Error?
             do { try work() } catch { failure = error }
-            DispatchQueue.main.async { self.busy = false; self.onBusy?(false); if let failure { Self.alert(failure.localizedDescription) } }
+            DispatchQueue.main.async { self.endTask(); if let failure { Self.alert(failure.localizedDescription) } }
         }
     }
+    func beginTask() -> Bool {
+        guard !busy else { Self.alert("A task is already running. Please wait for it to finish."); return false }
+        busy = true; onBusy?(true); return true
+    }
+    func endTask() { busy = false; onBusy?(false) }
     static func alert(_ message: String) {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert(); alert.messageText = "Tangerine"; alert.informativeText = message; alert.runModal()
@@ -35,9 +41,9 @@ final class FileActions {
     static func output(for file: URL, suffix: String = "", ext: String) -> URL {
         let base = file.deletingPathExtension().lastPathComponent + suffix
         let folder = file.deletingLastPathComponent()
-        var url = folder.appendingPathComponent(base).appendingPathExtension(ext)
+        var url = ext.isEmpty ? folder.appendingPathComponent(base) : folder.appendingPathComponent(base).appendingPathExtension(ext)
         var n = 2
-        while FileManager.default.fileExists(atPath: url.path) { url = folder.appendingPathComponent("\(base) \(n)").appendingPathExtension(ext); n += 1 }
+        while FileManager.default.fileExists(atPath: url.path) { url = ext.isEmpty ? folder.appendingPathComponent("\(base) \(n)") : folder.appendingPathComponent("\(base) \(n)").appendingPathExtension(ext); n += 1 }
         return url
     }
     static func save(_ data: Data, to output: URL, reveal: Bool = true) throws {
@@ -45,36 +51,11 @@ final class FileActions {
         try data.write(to: output, options: [.withoutOverwriting])
         if reveal { DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]) } }
     }
-    func conversions(_ file: URL) -> [WheelAction] {
-        let type = (try? file.resourceValues(forKeys: [.contentTypeKey]))?.contentType
-        let image = type?.conforms(to: .image) == true
-        let pdf = type?.conforms(to: .pdf) == true
-        let media = type?.conforms(to: .movie) == true || type?.conforms(to: .audio) == true
-        var actions: [WheelAction] = []
-        let formats = image ? ["png", "jpg", "webp", "heic", "tiff", "pdf", "txt", "docx"] : pdf ? ["png", "jpg", "heic", "tiff", "txt", "docx"] : media ? ["mp4", "mp3", "gif"] : []
-        for format in formats {
-            let worker = ["webp", "mp4", "mp3", "gif"].contains(format)
-            actions.append(WheelAction(title: format, symbol: worker ? "arrow.triangle.2.circlepath" : "doc", enabled: !worker || Settings.shared.workerEnabled) { [weak self] in
-                self?.run { if worker { try Self.workerConvert(file, format: format) } else { try Self.convert(file, format: format) } }
-            })
-        }
-        if actions.isEmpty { actions = [WheelAction(title: "No formats", symbol: "nosign", enabled: false, perform: {})] }
-        return actions
-    }
-    func utilities(_ file: URL) -> [WheelAction] {
-        let image = (try? file.resourceValues(forKeys: [.contentTypeKey]))?.contentType?.conforms(to: .image) == true
-        return [
-            WheelAction(title: "Compress", symbol: "arrow.down.right.and.arrow.up.left") { [weak self] in self?.run { try Self.compress(file) } },
-            WheelAction(title: "Metadata", symbol: "info.circle") { Self.metadata(file) },
-            WheelAction(title: "Preview", symbol: "pencil.tip") { NSWorkspace.shared.open([file], withApplicationAt: URL(fileURLWithPath: "/System/Applications/Preview.app"), configuration: NSWorkspace.OpenConfiguration()) },
-            WheelAction(title: "Copy path", symbol: "link") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(file.path, forType: .string) },
-            WheelAction(title: "Add BG", symbol: "photo.on.rectangle", enabled: image) { [weak self] in self?.openEditor(file, mode: .background) },
-            WheelAction(title: "Crop", symbol: "crop", enabled: image) { [weak self] in self?.openEditor(file, mode: .crop) },
-            WheelAction(title: "Duplicate", symbol: "doc.on.doc") { [weak self] in self?.run { let out = Self.output(for: file, suffix: " copy", ext: file.pathExtension); try FileManager.default.copyItem(at: file, to: out); DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([out]) } } },
-            WheelAction(title: "Rename", symbol: "character.cursor.ibeam") { Self.rename(file) }
-        ]
-    }
-    static func convert(_ file: URL, format: String, reveal: Bool = true) throws {
+    @discardableResult
+    static func convert(_ file: URL, format: String, reveal: Bool = true) throws -> [URL] {
+        var outputs: [URL] = []
+        var complete = false
+        defer { if !complete { for output in outputs { try? FileManager.default.removeItem(at: output) } } }
         if ["txt", "docx"].contains(format) {
             var text = ""
             if file.pathExtension.lowercased() == "pdf", let doc = PDFDocument(url: file) {
@@ -87,20 +68,28 @@ final class FileActions {
                 }
             } else { text = try recognize(image(file)) }
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ActionError(message: "No text was detected in this file.") }
-            if format == "txt" { try save(Data(text.utf8), to: output(for: file, ext: "txt"), reveal: reveal); return }
+            if format == "txt" { let out = output(for: file, ext: "txt"); try save(Data(text.utf8), to: out, reveal: reveal); return [out] }
             let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("txt")
             defer { try? FileManager.default.removeItem(at: temp) }
             try Data(text.utf8).write(to: temp)
             let data = try process("/usr/bin/textutil", ["-convert", "docx", "-stdout", temp.path])
-            try save(data, to: output(for: file, ext: "docx"), reveal: reveal); return
+            let out = output(for: file, ext: "docx"); try save(data, to: out, reveal: reveal); return [out]
         }
         if file.pathExtension.lowercased() == "pdf", let doc = PDFDocument(url: file), doc.pageCount > 1 {
             // Export every page; never silently drop later pages.
             for index in 0..<doc.pageCount {
                 guard let page = doc.page(at: index) else { continue }
-                try save(encode(page.thumbnail(of: NSSize(width: 2400, height: 2400), for: .mediaBox), format: format), to: output(for: file, suffix: " page \(index + 1)", ext: format), reveal: reveal)
+                let out = output(for: file, suffix: " page \(index + 1)", ext: format)
+                try save(encode(page.thumbnail(of: NSSize(width: 2400, height: 2400), for: .mediaBox), format: format), to: out, reveal: reveal)
+                outputs.append(out)
             }
-        } else { try save(encode(image(file), format: format), to: output(for: file, ext: format), reveal: reveal) }
+        } else {
+            let out = output(for: file, ext: format)
+            try save(encode(image(file), format: format), to: out, reveal: reveal)
+            outputs.append(out)
+        }
+        complete = true
+        return outputs
     }
     static func recognize(_ image: NSImage) throws -> String {
         var rect = CGRect(origin: .zero, size: image.size)
@@ -119,7 +108,7 @@ final class FileActions {
         if format == "jpg", let context = CGContext(data: nil, width: cg.width, height: cg.height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) {
             context.setFillColor(NSColor.white.cgColor); context.fill(CGRect(x: 0, y: 0, width: cg.width, height: cg.height)); context.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height)); cg = context.makeImage()!
         }
-        let types = ["png": UTType.png, "jpg": UTType.jpeg, "tiff": UTType.tiff, "heic": UTType.heic]
+        let types = ["png": UTType.png, "jpg": UTType.jpeg, "tiff": UTType.tiff, "heic": UTType.heic, "webp": UTType.webP]
         guard let type = types[format] else { throw ActionError(message: "Unsupported output format.") }
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, type.identifier as CFString, 1, nil) else { throw ActionError(message: "This Mac cannot encode \(format.uppercased()).") }
@@ -133,16 +122,19 @@ final class FileActions {
         try p.run(); let data = pipe.fileHandleForReading.readDataToEndOfFile(); p.waitUntilExit()
         guard p.terminationStatus == 0 else { throw ActionError(message: "The operation failed. Check the file format and available disk space.") }; return data
     }
-    static func compress(_ file: URL) throws {
+    @discardableResult
+    static func compress(_ file: URL, reveal: Bool = true) throws -> URL {
         let out = output(for: file, ext: "zip")
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("zip")
         defer { try? FileManager.default.removeItem(at: temp) }
         _ = try process("/usr/bin/ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", file.path, temp.path])
         try FileManager.default.copyItem(at: temp, to: out)
-        DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([out]) }
+        if reveal { DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([out]) } }
+        return out
     }
-    static func workerConvert(_ file: URL, format: String) throws {
-        let token = Settings.shared.token
+    @discardableResult
+    static func workerConvert(_ file: URL, format: String, reveal: Bool = true, token: String? = nil) throws -> URL {
+        let token = token ?? Settings.shared.token
         guard !token.isEmpty else { throw ActionError(message: "Worker credentials are missing. Run scripts/deploy.sh and reopen the rebuilt app.") }
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -153,7 +145,8 @@ final class FileActions {
         try p.run(); input.fileHandleForWriting.write(Data("header = \"Authorization: Bearer \(token)\"\n".utf8)); try input.fileHandleForWriting.close(); p.waitUntilExit()
         guard p.terminationStatus == 0 else { throw ActionError(message: "Media conversion failed. Check Docker is running (scripts/deploy.sh). Files must be under 128 MiB; conversions time out after five minutes. The file may be unsupported or exceed the worker's memory limit.") }
         let out = output(for: file, ext: format); try FileManager.default.copyItem(at: temp, to: out)
-        DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([out]) }
+        if reveal { DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([out]) } }
+        return out
     }
     static func metadata(_ file: URL) {
         do {

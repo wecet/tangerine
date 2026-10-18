@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import PDFKit
 import ImageIO
+import AVFoundation
 
 @main
 struct NativeChecks {
@@ -65,6 +66,50 @@ struct NativeChecks {
             precondition(WheelGeometry.actionIndex(at: .zero, count: count) == nil)
             precondition(WheelGeometry.actionIndex(at: CGPoint(x: 180, y: 20), count: count) == nil)
         }
+        // Context rules must never offer video output for audio, or convert an old selection.
+        precondition(FileSelection(clicked: source, selected: [pdfFile]).files == [source])
+        precondition(FileSelection(clicked: source, selected: [source, pdfFile, source]).files == [source, pdfFile])
+        precondition(FileSelection.commonFormats([source, pdfFile]) == ["png", "jpg", "heic", "tiff", "txt", "docx"])
+        precondition(FileKind.audio.formats == ["mp3"])
+        precondition(FileKind.folder.formats.isEmpty)
+        let second = tmp.appendingPathComponent("second.png")
+        try FileActions.encode(image, format: "png").write(to: second)
+        let broken = tmp.appendingPathComponent("broken.png")
+        try Data("not an image".utf8).write(to: broken)
+        let originalBytes = try Data(contentsOf: source)
+        let batch = BatchRunner.convert([source, broken, second], format: "jpg", workerEnabled: false, token: "")
+        precondition(batch.outcomes.count == 3 && batch.failedCount == 1 && batch.outputs.count == 2)
+        for out in batch.outputs { precondition(NSImage(contentsOf: out)?.isValid == true) }
+        let after = try Data(contentsOf: source)
+        precondition(originalBytes == after, "Batch conversion modified an original")
+        var stop = false
+        let cancelled = BatchRunner.convert([source, second], format: "png", workerEnabled: false, token: "", cancelled: { stop }, progress: { _, _ in stop = true })
+        precondition(cancelled.cancelled && cancelled.outcomes.count == 1)
+        let mixed = BatchRunner.convert([source, pdfFile], format: "png", workerEnabled: false, token: "")
+        precondition(mixed.failedCount == 0 && mixed.outputs.count == 3)
+        let combined = try FileActions.mergePDF([source, pdfFile], reveal: false)
+        precondition(PDFDocument(url: combined)?.pageCount == 3)
+        let split = try FileActions.splitPDF(combined)
+        precondition(split.count == 3)
+        for page in split { precondition(PDFDocument(url: page)?.pageCount == 1) }
+        let jpgPreview = try PreviewRenderer.render(source, format: "jpg")
+        precondition(jpgPreview.image?.isValid == true)
+        precondition(jpgPreview.details.contains { $0.contains("Transparency becomes white") })
+        precondition(jpgPreview.details.contains { $0.contains("sampled estimate") })
+        let large = NSImage(size: NSSize(width: 2400, height: 1600), flipped: false) { rect in NSColor.blue.setFill(); rect.fill(); return true }
+        let largeFile = tmp.appendingPathComponent("large.png")
+        try FileActions.encode(large, format: "png").write(to: largeFile)
+        let bounded = try PreviewRenderer.render(largeFile, format: "png")
+        var boundedRect = CGRect(origin: .zero, size: bounded.image!.size)
+        let boundedCG = bounded.image!.cgImage(forProposedRect: &boundedRect, context: nil, hints: nil)!
+        precondition(max(boundedCG.width, boundedCG.height) <= PreviewRenderer.maximumPixelSize)
+        let pdfPreview = try PreviewRenderer.render(pdfFile, format: "jpg")
+        precondition(pdfPreview.details.contains { $0.contains("2 pages") })
+        let mov = tmp.appendingPathComponent("video.mov")
+        _ = try FileActions.process("/usr/bin/env", ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=0.25", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-threads", "1", mov.path])
+        let nativeVideo = try FileActions.convertAutomatically(mov, format: "mp4", workerEnabled: false, token: "", reveal: false)
+        precondition(nativeVideo.count == 1)
+        precondition(!AVURLAsset(url: nativeVideo[0]).tracks(withMediaType: .video).isEmpty)
         let actions = ["PNG", "JPG", "WEBP", "HEIC", "TIFF", "PDF", "TXT", "DOCX"].map { WheelAction(title: $0, symbol: "doc", perform: {}) }
         let view = NSHostingView(rootView: WheelView(file: source, title: "Convert", actions: actions, dismiss: {}))
         view.frame = NSRect(x: 0, y: 0, width: WheelGeometry.displaySize, height: WheelGeometry.displaySize)
@@ -75,6 +120,6 @@ struct NativeChecks {
             try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
             try bitmap.representation(using: .png, properties: [:])?.write(to: path)
         }
-        print("Native checks passed: PNG/JPEG/HEIC/TIFF/PDF, multipage PDF exports, output collisions, OCR, exact modifier bindings, every wheel sector")
+        print("Native checks passed: PNG/JPEG/HEIC/TIFF/PDF, multipage PDF exports, output collisions, OCR, exact modifier bindings, every wheel sector, context intersection, batch failure/cancellation, PDF merge/split, bounded previews, native MP4")
     }
 }

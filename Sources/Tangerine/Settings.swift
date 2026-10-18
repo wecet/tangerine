@@ -67,7 +67,7 @@ struct SettingsView: View {
             Divider()
             Text("Click directly on a file icon or filename in Finder or on the Desktop. Choose an action, or press Escape / click outside to dismiss.").font(.callout)
             HStack { Button("Accessibility permission…", action: permissions); Spacer(); Button("Restore defaults") { settings.conversion = .option; settings.utilities = .shift; settings.enabled = true } }
-            Text("Grant Tangerine Accessibility in System Settings, then quit and reopen it. No polling, analytics, or cloud uploads.").font(.caption).foregroundStyle(.secondary)
+            Text("Enable Tangerine under Privacy & Security → Accessibility, then return here. No polling, analytics, or cloud uploads.").font(.caption).foregroundStyle(.secondary)
         }.padding(26).frame(width: 470)
     }
 }

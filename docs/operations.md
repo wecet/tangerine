@@ -2,7 +2,7 @@
 
 ## Deploy and upgrade
 
-Run `./scripts/deploy.sh` from the project. It builds and signs the native app, builds the Alpine worker image, and waits for worker readiness. Open `build/Tangerine.app`. Quit a running older app before reopening a rebuilt version. The app stays in the build directory; copying it to Applications is optional and must be followed by granting Accessibility to that stable location.
+Run `./scripts/deploy.sh` from the project. It builds and signs the native app, builds the Alpine worker image, and waits for worker readiness. Run `./scripts/install-app.sh`, then open `~/Applications/Tangerine.app`. Quit a running older app before reopening a rebuilt version. The app stays in the build directory; copying it to Applications is optional and must be followed by granting Accessibility to that stable location.
 
 When upgrading, retain `.env`, run deployment again, and reopen the app. No account or database migration is required. For repeatable supply-chain builds, pin the Alpine image digest and APK repository snapshot after validating a release; the current Dockerfile uses the maintained Alpine 3.22 tag and latest available package patches in that release.
 

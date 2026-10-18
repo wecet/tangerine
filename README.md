@@ -7,7 +7,7 @@ A native macOS menu bar app with contextual citrus-segment wheels, neutral trans
 - Menu bar → **Settings & accent color…**: change bindings, accent, or enable/disable wheels.
 - **Convert files…** in the menu bar opens batch review with per-file results and live sample previews.
 - Hover over a format to preview its output. Existing Finder selections become batches when the clicked item belongs to the complete captured selection.
-- Escape or click outside dismisses the wheel. Unsupported actions are dimmed.
+- Escape or click outside the circular wheel dismisses it and its preview, including clicks in the transparent corners. Outside clicks still reach the app underneath. Unsupported actions are dimmed.
 
 ## Start
 

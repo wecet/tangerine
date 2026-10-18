@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = Brand.menuIcon
         actions.onBusy = { [weak self] busy in self?.item.button?.image = (busy ? NSImage(systemSymbolName: "hourglass", accessibilityDescription: "Tangerine is working") : Brand.menuIcon) }
+        monitor.onPointerDown = { [weak self] point in self?.wheel.dismissIfOutside(atQuartzPoint: point) }
         monitor.onClick = { [weak self] files, convert, point in
             guard let self else { return }
             guard let file = files.first else { return }

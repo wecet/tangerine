@@ -11,6 +11,7 @@ Validated locally on 18 October 2026 using Apple Silicon macOS 15.7.4, Swift 6.1
 - Exclusive/collision-safe output naming, original byte preservation and exact click modifiers.
 - On-device OCR of a generated text image.
 - Every wheel segment at three radial distances, for 3-, 4-, 6- and 8-action wheels, with hub/outside rejection.
+- Circular dismissal boundaries at the visible edge, transparent corners, negative screen coordinates and empty frames.
 - File context, mixed image/PDF format intersection, audio-only output rules and rejecting an unrelated Finder selection.
 - Sequential batches continuing after a corrupt file, stopping between inputs and exporting multipage inputs.
 - PDF merge/split page counts.

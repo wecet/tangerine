@@ -66,6 +66,14 @@ struct NativeChecks {
             precondition(WheelGeometry.actionIndex(at: .zero, count: count) == nil)
             precondition(WheelGeometry.actionIndex(at: CGPoint(x: 180, y: 20), count: count) == nil)
         }
+        // The visible wheel is circular; transparent panel corners are outside clicks.
+        let wheelFrame = CGRect(x: -500, y: 200, width: 290, height: 290)
+        precondition(WheelGeometry.containsWheel(CGPoint(x: -355, y: 345), in: wheelFrame))
+        precondition(WheelGeometry.containsWheel(CGPoint(x: -226, y: 345), in: wheelFrame))
+        precondition(!WheelGeometry.containsWheel(CGPoint(x: -225, y: 345), in: wheelFrame))
+        precondition(!WheelGeometry.containsWheel(CGPoint(x: -499, y: 201), in: wheelFrame))
+        precondition(!WheelGeometry.containsWheel(CGPoint(x: 0, y: 0), in: wheelFrame))
+        precondition(!WheelGeometry.containsWheel(.zero, in: .zero))
         // Context rules must never offer video output for audio, or convert an old selection.
         precondition(FileSelection(clicked: source, selected: [pdfFile]).files == [source])
         precondition(FileSelection(clicked: source, selected: [source, pdfFile, source]).files == [source, pdfFile])

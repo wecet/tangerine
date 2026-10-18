@@ -38,6 +38,11 @@ struct Wedge: Shape {
 enum WheelGeometry {
     static let canvasSize: CGFloat = 360
     static let displaySize: CGFloat = 290
+    static func containsWheel(_ point: CGPoint, in frame: CGRect) -> Bool {
+        guard frame.width > 0, frame.height > 0 else { return false }
+        let radius = min(frame.width, frame.height) * 161 / canvasSize
+        return hypot(point.x - frame.midX, point.y - frame.midY) <= radius
+    }
     static func actionIndex(at point: CGPoint, count: Int) -> Int? {
         guard count > 0 else { return nil }
         let rect = CGRect(x: 0, y: 0, width: canvasSize, height: canvasSize)
@@ -176,12 +181,32 @@ final class WheelController {
         let bounds = screen.visibleFrame
         panel.setFrameOrigin(NSPoint(x: max(bounds.minX, min(appPoint.x - size / 2, bounds.maxX - size)), y: max(bounds.minY, min(appPoint.y - size / 2, bounds.maxY - size))))
         self.panel = panel; panel.makeKeyAndOrderFront(nil)
-        global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] _ in DispatchQueue.main.async { self?.dismiss() } }
-        local = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if event.type == .keyDown && event.keyCode == 53 { self?.dismiss(); return nil }
-            if event.type != .keyDown && event.window !== self?.panel { self?.dismiss() }
-            return event
+        global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]) { [weak self] event in
+            self?.handleDismissalEvent(event)
         }
+        local = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+            self?.handleDismissalEvent(event)
+            return event.type == .keyDown && event.keyCode == 53 ? nil : event
+        }
+    }
+    /// Called by the existing session event tap before the click reaches Finder/AppKit.
+    /// The click itself is left untouched, so dismissal doesn't consume an outside click.
+    func dismissIfOutside(atQuartzPoint point: CGPoint) {
+        let top = NSScreen.screens.first?.frame.maxY ?? 0
+        dismissIfOutside(atScreenPoint: CGPoint(x: point.x, y: top - point.y))
+    }
+    private func dismissIfOutside(atScreenPoint point: CGPoint) {
+        guard let panel, !WheelGeometry.containsWheel(point, in: panel.frame) else { return }
+        dismiss()
+    }
+    private func handleDismissalEvent(_ event: NSEvent) {
+        if event.type == .keyDown {
+            if event.keyCode == 53 { dismiss() }
+            return
+        }
+        if let cgEvent = event.cgEvent { dismissIfOutside(atQuartzPoint: cgEvent.location) }
+        else if let window = event.window { dismissIfOutside(atScreenPoint: window.convertPoint(toScreen: event.locationInWindow)) }
+        else { dismissIfOutside(atScreenPoint: NSEvent.mouseLocation) }
     }
     private func showPreview(_ file: URL, action: WheelAction?, count: Int) {
         guard let panel, let action, action.enabled, let format = action.previewFormat else {

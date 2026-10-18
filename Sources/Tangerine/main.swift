@@ -11,8 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "circle.hexagongrid", accessibilityDescription: "Tangerine")
-        actions.onBusy = { [weak self] busy in self?.item.button?.image = NSImage(systemSymbolName: busy ? "hourglass" : "circle.hexagongrid", accessibilityDescription: busy ? "Tangerine is working" : "Tangerine") }
+        item.button?.image = Brand.menuIcon
+        actions.onBusy = { [weak self] busy in self?.item.button?.image = (busy ? NSImage(systemSymbolName: "hourglass", accessibilityDescription: "Tangerine is working") : Brand.menuIcon) }
         monitor.onClick = { [weak self] file, convert, point in
             guard let self else { return }
             self.wheel.show(file: file, title: convert ? "Convert" : "Utilities", actions: convert ? self.actions.conversions(file) : self.actions.utilities(file), at: point)

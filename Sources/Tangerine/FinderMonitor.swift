@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 
 final class FinderMonitor {
+    var onPointerDown: ((CGPoint) -> Void)?
     var onClick: (([URL], Bool, CGPoint) -> Void)?
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
@@ -13,7 +14,7 @@ final class FinderMonitor {
         guard AXIsProcessTrusted() else { stop(); settings.connectionStatus = "This running app does not have Accessibility access"; return }
         if let tap, CGEvent.tapIsEnabled(tap: tap) { settings.connectionStatus = "Ready · Finder & Desktop"; return }
         stop()
-        let mask = (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseUp.rawValue)
+        let mask = [CGEventType.leftMouseDown, .leftMouseUp, .rightMouseDown, .otherMouseDown].reduce(CGEventMask(0)) { $0 | (1 << $1.rawValue) }
         tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: CGEventMask(mask), callback: { _, type, event, context in
             guard let context else { return Unmanaged.passUnretained(event) }
             return Unmanaged<FinderMonitor>.fromOpaque(context).takeUnretainedValue().handle(type, event)
@@ -39,6 +40,7 @@ final class FinderMonitor {
             return Unmanaged.passUnretained(event)
         }
         if type == .leftMouseUp, swallowed { swallowed = false; return nil }
+        if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown { onPointerDown?(event.location) }
         guard type == .leftMouseDown, Settings.shared.enabled else { return Unmanaged.passUnretained(event) }
         let convert = Settings.shared.conversion.matches(event.flags)
         guard convert || Settings.shared.utilities.matches(event.flags) else { return Unmanaged.passUnretained(event) }

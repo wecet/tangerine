@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func updateMenu() {
         let menu = NSMenu()
         menu.addItem(withTitle: "Tangerine", action: nil, keyEquivalent: "")
-        let state = !Settings.shared.enabled ? "Wheels paused" : monitor.active ? "Ready · Finder & Desktop" : "Accessibility access needed"
+        let state = !Settings.shared.enabled ? "Wheels paused" : Settings.shared.conversion == Settings.shared.utilities ? "Binding conflict · choose different bindings" : monitor.active ? "Ready · Finder & Desktop" : "Accessibility access needed"
         menu.addItem(withTitle: state, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
         let toggle = menu.addItem(withTitle: "Enable wheels", action: #selector(toggleEnabled), keyEquivalent: "")

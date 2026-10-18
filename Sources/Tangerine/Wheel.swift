@@ -16,9 +16,20 @@ struct Wedge: Shape {
         let step = 360.0 / Double(count)
         let a = Double(index) * step - 90 - step / 2 + 2
         let b = a + step - 4
+        func point(_ radius: Double, _ degrees: Double) -> CGPoint {
+            let rad = degrees * Double.pi / 180
+            return CGPoint(x: center.x + radius * cos(rad), y: center.y + radius * sin(rad))
+        }
         var p = Path()
-        p.addArc(center: center, radius: 155, startAngle: .degrees(a), endAngle: .degrees(b), clockwise: false)
-        p.addArc(center: center, radius: 65, startAngle: .degrees(b), endAngle: .degrees(a), clockwise: true)
+        // Soft radial corners make each sector feel like a citrus segment.
+        p.move(to: point(145, a))
+        p.addQuadCurve(to: point(155, a + 4), control: point(155, a))
+        p.addArc(center: center, radius: 155, startAngle: .degrees(a + 4), endAngle: .degrees(b - 4), clockwise: false)
+        p.addQuadCurve(to: point(145, b), control: point(155, b))
+        p.addLine(to: point(75, b))
+        p.addQuadCurve(to: point(65, b - 6), control: point(65, b))
+        p.addArc(center: center, radius: 65, startAngle: .degrees(b - 6), endAngle: .degrees(a + 6), clockwise: true)
+        p.addQuadCurve(to: point(75, a), control: point(65, a))
         p.closeSubpath()
         return p
     }
@@ -71,6 +82,7 @@ struct WheelView: View {
             ForEach(actions.indices, id: \.self) { index in
                 WheelSegment(action: actions[index], index: index, count: actions.count, accent: settings.accent, hovered: hover == actions[index].id, hover: { inside in hover = inside ? actions[index].id : nil }, dismiss: dismiss)
             }
+            Circle().fill(.thinMaterial).frame(width: 116, height: 116).overlay(Circle().stroke(settings.accent.opacity(0.35), lineWidth: 1))
             VStack(spacing: 6) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: file.path)).resizable().frame(width: 28, height: 28)
                 Text(hover ?? title).font(.system(size: 11, weight: .semibold)).lineLimit(1)

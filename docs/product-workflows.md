@@ -4,13 +4,15 @@
 
 Option-click a file to see formats supported by its type. Shift-click offers utilities suited to the selection:
 
-- Images: crop, background styling, Preview, metadata, ZIP, copy path, duplicate, rename.
-- PDFs: split into individual-page PDFs, Preview, metadata and common file utilities.
+- Images: crop, background styling, Preview, Float, ZIP, copy path, AirDrop, rename.
+- PDFs: split into individual-page PDFs, Preview, Float and common file utilities.
 - Multiple images/PDFs: combine pages into one PDF, in selection order.
 - Video: MP4, MP3 and GIF; audio offers MP3 only.
 - Folders/other files: common file utilities; unsupported conversion selections offer Choose files.
 
 For a mixed selection, conversion formats are the intersection supported by every file. An image plus a PDF can be converted to PNG/JPG/HEIC/TIFF/TXT/DOCX; an audio plus a video can be converted to MP3. Files with no shared format remain visible in the review window, with an explanation and controls to remove/add files.
+
+AirDrop uses the native macOS sharing service and opens its recipient dialog with the complete selection. Float adds the selection to one reusable floating shelf, deduplicating file URLs. The shelf stays above ordinary windows across Spaces, supports moving by its background, expands on hover (or a click on the stack), and accepts additional file/folder drops. Drag its stack to export everything or an expanded item to export one file. A successful copy drag removes exported references; cancellation leaves them available. Clicking an expanded item reveals it in Finder. Closing the shelf clears references without touching the originals. The shelf is temporary and is not restored after quitting.
 
 ## Batch conversion
 

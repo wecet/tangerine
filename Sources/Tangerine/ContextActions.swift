@@ -45,8 +45,8 @@ extension FileActions {
                 if kinds == [.image] || kinds == [.pdf] { NSWorkspace.shared.open([first], withApplicationAt: URL(fileURLWithPath: "/System/Applications/Preview.app"), configuration: NSWorkspace.OpenConfiguration()) }
                 else { NSWorkspace.shared.open(first) }
             })
-            items.append(WheelAction(title: "Metadata", symbol: "info.circle") { Self.metadata(first) })
         }
+        items.append(WheelAction(title: "Float", symbol: "pin") { [weak self] in self?.floatingFiles.show(files) })
         items.append(WheelAction(title: "ZIP", symbol: "archivebox") { [weak self] in self?.run {
             var outputs: [URL] = []
             for file in files { outputs.append(try Self.compress(file, reveal: false)) }

@@ -88,9 +88,19 @@ struct NativeChecks {
         let utilities = FileActions()
         for files in [[source], [source, pdfFile]] {
             let titles = utilities.utilities(files).map(\.title)
-            precondition(titles.contains("AirDrop"))
-            precondition(!titles.contains("Duplicate"))
+            precondition(titles.contains("AirDrop") && titles.contains("Float"))
+            precondition(!titles.contains("Duplicate") && !titles.contains("Metadata"))
         }
+        let shelf = FloatingFilesModel()
+        shelf.add([source, pdfFile, source])
+        shelf.add([pdfFile, second])
+        precondition(shelf.files == [source, pdfFile, second])
+        shelf.remove([pdfFile])
+        precondition(shelf.files == [source, second])
+        shelf.clear()
+        precondition(shelf.files.isEmpty)
+        let afterShelf = try Data(contentsOf: source)
+        precondition(afterShelf == originalBytes, "Shelf modified an original")
         let batch = BatchRunner.convert([source, broken, second], format: "jpg", workerEnabled: false, token: "")
         precondition(batch.outcomes.count == 3 && batch.failedCount == 1 && batch.outputs.count == 2)
         for out in batch.outputs { precondition(NSImage(contentsOf: out)?.isValid == true) }

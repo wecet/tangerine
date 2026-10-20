@@ -85,6 +85,12 @@ struct NativeChecks {
         let broken = tmp.appendingPathComponent("broken.png")
         try Data("not an image".utf8).write(to: broken)
         let originalBytes = try Data(contentsOf: source)
+        let utilities = FileActions()
+        for files in [[source], [source, pdfFile]] {
+            let titles = utilities.utilities(files).map(\.title)
+            precondition(titles.contains("AirDrop"))
+            precondition(!titles.contains("Duplicate"))
+        }
         let batch = BatchRunner.convert([source, broken, second], format: "jpg", workerEnabled: false, token: "")
         precondition(batch.outcomes.count == 3 && batch.failedCount == 1 && batch.outputs.count == 2)
         for out in batch.outputs { precondition(NSImage(contentsOf: out)?.isValid == true) }

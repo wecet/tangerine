@@ -55,14 +55,7 @@ extension FileActions {
         items.append(WheelAction(title: files.count > 1 ? "Copy paths" : "Copy path", symbol: "link") {
             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(files.map(\.path).joined(separator: "\n"), forType: .string)
         })
-        items.append(WheelAction(title: "Duplicate", symbol: "doc.on.doc") { [weak self] in self?.run {
-            var outputs: [URL] = []
-            for file in files {
-                let out = Self.output(for: file, suffix: " copy", ext: file.pathExtension)
-                try FileManager.default.copyItem(at: file, to: out); outputs.append(out)
-            }
-            DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting(outputs) }
-        } })
+        items.append(WheelAction(title: "AirDrop", symbol: "airplayaudio") { [weak self] in self?.airDrop.share(files) })
         if single { items.append(WheelAction(title: "Rename", symbol: "character.cursor.ibeam") { Self.rename(first) }) }
         if !single { items.append(WheelAction(title: "Convert…", symbol: "arrow.triangle.2.circlepath") { [weak self] in self?.openBatch(files) }) }
         return items

@@ -14,6 +14,7 @@ final class FileActions {
     var batchWindow: NSWindow?
     var batchModel: BatchConversionModel?
     var editor: NSWindow?
+    let airDrop = AirDropController()
     static func image(_ file: URL) throws -> NSImage {
         if file.pathExtension.lowercased() == "pdf", let page = PDFDocument(url: file)?.page(at: 0) {
             return page.thumbnail(of: NSSize(width: 2400, height: 2400), for: .mediaBox)

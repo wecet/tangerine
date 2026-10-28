@@ -28,7 +28,7 @@ final class Settings: ObservableObject {
     @Published var accentHex: String { didSet { UserDefaults.standard.set(accentHex, forKey: "accentHex") } }
     var accent: Color { Color(nsColor: accentColor) }
     var accentColor: NSColor {
-        let n = UInt32(accentHex, radix: 16) ?? 0x7C83F5
+        let n = UInt32(accentHex, radix: 16) ?? 0xFF6F61
         return NSColor(srgbRed: CGFloat((n >> 16) & 255) / 255, green: CGFloat((n >> 8) & 255) / 255, blue: CGFloat(n & 255) / 255, alpha: 1)
     }
     func setAccent(_ color: Color) {
@@ -42,7 +42,8 @@ final class Settings: ObservableObject {
     }
     init() {
         let d = UserDefaults.standard
-        accentHex = d.string(forKey: "accentHex") ?? "7C83F5"
+        // The previous lavender default migrates to coral; customised accents are kept.
+        accentHex = d.string(forKey: "accentHex").flatMap { $0 == "7C83F5" ? nil : $0 } ?? "FF6F61"
         enabled = d.object(forKey: "enabled") as? Bool ?? true
         conversion = Binding(rawValue: d.string(forKey: "conversion") ?? "") ?? .option
         utilities = Binding(rawValue: d.string(forKey: "utilities") ?? "") ?? .shift

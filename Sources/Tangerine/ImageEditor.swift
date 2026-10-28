@@ -12,7 +12,7 @@ struct ImageEditor: View {
     @State private var padding: Double = 60
     @State private var radius: Double = 24
     @State private var shadow: Double = 20
-    @State private var color: Color = Color(red: 0.25, green: 0.28, blue: 0.42)
+    @State private var color: Color = Color(red: 0.118, green: 0.118, blue: 0.129)
     @State private var gradient = true
     @ObservedObject var settings = Settings.shared
     var body: some View {

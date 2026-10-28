@@ -1,6 +1,6 @@
 # Tangerine identity
 
-`tangerine-icon.png` is the transparent master artwork, generated with the built-in image generation tool. It uses rounded citrus segments, graphite/pearl glass, and a muted lavender accent. The menu bar mark is a monochrome template drawn in `Sources/Tangerine/Brand.swift`, allowing macOS to adapt it to light and dark menu bars. The wheel accent remains configurable independently of the fixed application artwork.
+`tangerine-icon.png` is the transparent master artwork, generated with the built-in image generation tool. It uses rounded citrus segments, graphite/pearl glass, and a single coral (`#FF6F61`) accent segment, matching the charcoal, warm white and coral palette. The coral segment was recoloured from the original lavender generation by hue-shifting only the saturated accent pixels. The menu bar mark is a monochrome template drawn in `Sources/Tangerine/Brand.swift`, allowing macOS to adapt it to light and dark menu bars. The wheel accent defaults to the same coral and remains configurable independently of the fixed application artwork.
 
 `scripts/build-icon.sh` creates the standard 16–1024 px macOS icon representations and packages `build/Tangerine.icns`. `scripts/build-app.sh` includes that icon and declares it in Info.plist. Generated iconsets and bundles stay outside Git.
 
